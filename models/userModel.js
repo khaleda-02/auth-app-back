@@ -4,7 +4,10 @@ const userSchema = mongoose.Schema(
   {
     username: {
       type: String,
-      required: true
+      required: true,
+      // that's convert the capital chars to small
+      // lowercase : true ,
+      // maxlength: 40,
     },
     email: {
       type: String,
@@ -13,7 +16,8 @@ const userSchema = mongoose.Schema(
     },
     password: {
       type: String,
-      required: true
+      //! password isn't required , cuz the google users don't have password
+      // required: true
     },
     role: {
       user: {

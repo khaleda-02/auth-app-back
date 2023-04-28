@@ -1,13 +1,14 @@
 const asyncHandler = require('express-async-handler');
-const jwt = require('jsonwebtoken');
+const  jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 
 const verify = asyncHandler(async (req, res, next) => {
   let token;
-
+  //!getting the token
   let header = req.headers.authorization;
   if (header && header.startsWith('Bearer')) {
     token = header.split(' ')[1];
+    //! validate the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = await User.findOne({ _id: decoded.id }).select('-password');
     next();
