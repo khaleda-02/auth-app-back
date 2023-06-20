@@ -5,12 +5,11 @@ const jwt = require('jsonwebtoken');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 
+const cookiesExpireTime = 24 * 60 * 60 * 1000; // one day in milliseconds
 const firebaseApp = initializeApp(
   { projectId: process.env.FIREBASE_PROJECT_ID }
 );
 
-//TODO: test , signup with google , then logout , then login with email and password but the email is the google email 
-//! MAKE THE COOKIES EXPIRE TIME AS SAME AS THE TOKEN EXPIRE TIME . 
 //TODO: VAILDATE THE USER INPUTS .  
 
 const tokenGenrator = (id) => {
@@ -22,41 +21,37 @@ const tokenGenrator = (id) => {
 // @access public
 const login = asyncHandler(
   async (req, res) => {
-    // now . want to know the typeof the login operation .
-    const { googleToken } = req.body;
+    const { email, password, googleToken } = req.body;
+    let user = null;
+    let verified = false;
+
     if (googleToken) {
-      const user = await getAuth().verifyIdToken(googleToken);
-      if (user && await User.findOne({ email: user.email })) {
-        res.status(200).json({
-          _id: user._id,
-          email: user.email,
-          username: user.username,
-          accessToken: tokenGenrator(user._id)
-        })
-      } else {
-        res.status(401);
-        throw new Error('unauthorized');
-      }
+      decoded = await getAuth().verifyIdToken(googleToken);
+      user = await User.findOne({ email: decoded.email })
+      verified = true && user;
+    } else if (email && password) {
+      user = await User.findOne({ email });
+      //! حطينا اليوزر تحت عشان لما انا ادخل ايميل غلط , الكود اللي فوق رح يرجع نل و 
+      //! وبالتالي في الكود تحت ما رح يقدر يقرا من نل و رح يرجع ايرور مش مفهوم 
+      verified = user && await bcrypt.compare(password, user.password);
+    } else {
+      res.status(400)
+      throw new Error('add credintional')
     }
-    else {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        res.status(400)
-        throw new Error('add all fields ...');
-      }
-      //check for user email
-      const user = await User.findOne({ email });
-      if (user && await bcrypt.compare(password, user.password)) {
-        res.status(200).json({
+
+    if (verified) {
+      res
+        .cookie('token', tokenGenrator(user._id), { httpOnly: true, expire: new Date() + cookiesExpireTime })
+        .status(200)
+        .json({
           _id: user._id,
           email: user.email,
           username: user.username,
-          accessToken: tokenGenrator(user._id)
+          // accessToken: tokenGenrator(user._id)
         })
-      } else {
-        res.status(401);
-        throw new Error('unauthorized');
-      }
+    } else {
+      res.status(401);
+      throw new Error('unauthorized');
     }
   }
 )
@@ -65,59 +60,60 @@ const login = asyncHandler(
 // @route  POST /api/auth/register
 // @access public
 const register = asyncHandler(async (req, res) => {
-  console.log('in register');
-  const { googleToken } = req.body;
-  if (googleToken) {
-    console.log('in register google tokenb block');
-    const user = await getAuth().verifyIdToken(googleToken);
-    console.log('user', user);
-    if (user && !await User.findOne({ email: user.email })) {
-      console.log('inside if , user was is creating')
-      const newUser = await User.create({
-        email: user.email,
-        username: user.name,
-      })
-      console.log('registered user')
-      res.status(200).json({
-        _id: newUser._id,
-        email: newUser.email,
-        username: newUser.username,
-        accessToken: tokenGenrator(newUser._id)
-      })
-    } else {
-      console.log('inside else , user was not created')
-      res.status(400)
-      throw new Error('the user is already exist ')
-    }
-  } else {
-    const { username, email, password } = req.body;
-    if (!username || !email || !password) {
-      res.status(400);
-      throw new Error('add credintional ');
-    }
-    //check if the user exist 
-    const userExists = await User.findOne({ email });
-    if (!userExists) {
-      const hashedPassword = await bcrypt.hash(password, 12);
 
-      const user = await User.create({
-        email,
-        username,
-        password: hashedPassword
+  const { username, email, password, googleToken } = req.body;
+  let userToReturn = null;
+  let userExists = null;
+  let verified = false;
+
+  if (googleToken) {
+    let decoded = await getAuth().verifyIdToken(googleToken);
+    userExists = await User.findOne({ email: decoded.email });
+    userToReturn = !userExists && await User.create({
+      email: decoded.email,
+      username: decoded.name,
+    });
+    verified = true && !userExists;
+
+  } else if (username && email && password) {
+    userExists = await User.findOne({ email: email });
+    userToReturn = !userExists && await User.create({
+      email,
+      username,
+      password: await bcrypt.hash(password, 12)
+    });
+    verified = true && !userExists;
+
+  } else {
+    res.status(400);
+    throw new Error('add credintional ');
+  }
+
+  if (verified) {
+    res
+      .cookie('token', tokenGenrator(userToReturn._id), { httpOnly: true, expire: new Date() + cookiesExpireTime })
+      .status(200)
+      .json({
+        _id: userToReturn._id,
+        email: userToReturn.email,
+        username: userToReturn.username,
       })
-      res.status(200).json({
-        _id: user._id,
-        email: user.email,
-        username: user.username,
-        accessToken: tokenGenrator(user._id)
-      })
-    } else {
-      res.status(400)
-      throw new Error('the user is already exist ')
-    }
+  } else {
+    res.status(400)
+    throw new Error('the user is already exist ')
   }
 })
 
+
+// @des    logout
+// @route  get /api/auth/logout
+// @access public
+const logout = asyncHandler(async (req, res) => {
+  res
+    .clearCookie('token')
+    .status(200)
+    .json({ message: 'logout successful' })
+})
 
 // @des    register 
 // @route  POST /api/auth/isauth
@@ -126,4 +122,4 @@ const isAuth = (req, res) => {
   res.status(200).json(req.user)
 }
 
-module.exports = { login, register, isAuth }
+module.exports = { login, register, logout, isAuth }
