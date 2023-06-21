@@ -19,6 +19,14 @@ const userSchema = mongoose.Schema(
       //! password isn't required , cuz the google users don't have password
       // required: true
     },
+    OTP: {
+      type: String,
+      default: undefined
+    },
+    OTPCodeExpiration: {
+      type: Date,
+      default: undefined
+    },
     role: {
       user: {
         type: Number,
