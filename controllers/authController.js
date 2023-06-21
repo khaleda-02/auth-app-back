@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
+const { sendEmail } = require('../util/sendEmail');
 
 const cookiesExpireTime = 24 * 60 * 60 * 1000; // one day in milliseconds
 const firebaseApp = initializeApp(
@@ -13,7 +14,17 @@ const firebaseApp = initializeApp(
 //TODO: VAILDATE THE USER INPUTS .  
 
 const tokenGenrator = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '3d' })
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '3d' });
+}
+
+const OTPCodeGenerator = () => {
+  return Math.floor(Math.random() * 9000 + 1000);
+}
+
+//! make it middleware 
+const addCredintionailsRes = (res) => {
+  res.status(400);
+  throw new Error("add credintionals ..")
 }
 
 // @des    login
@@ -35,8 +46,7 @@ const login = asyncHandler(
       //! وبالتالي في الكود تحت ما رح يقدر يقرا من نل و رح يرجع ايرور مش مفهوم 
       verified = user && await bcrypt.compare(password, user.password);
     } else {
-      res.status(400)
-      throw new Error('add credintional')
+      addCredintionailsRes(res);
     }
 
     if (verified) {
@@ -85,8 +95,7 @@ const register = asyncHandler(async (req, res) => {
     verified = true && !userExists;
 
   } else {
-    res.status(400);
-    throw new Error('add credintional ');
+    addCredintionailsRes(res);
   }
 
   if (verified) {
@@ -122,4 +131,66 @@ const isAuth = (req, res) => {
   res.status(200).json(req.user)
 }
 
-module.exports = { login, register, logout, isAuth }
+// @des    forgot password 
+// @route  POST /api/auth/forgot-password/
+// @access Public 
+const sendOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    addCredintionailsRes(res);
+  }
+  const OTP = OTPCodeGenerator();
+  const user = await User.findOneAndUpdate({ email }, {
+    OTP: await bcrypt.hash(`${OTP}`, 12), OTPCodeExpiration: Date.now() + 3600000
+  }, { new: true })
+
+  if (!user) {
+    res.status(400);
+    throw new Error('user not found ');
+  }
+
+  await sendEmail({
+    from: 'khaleda.02f',
+    to: email,
+    subject: 'Password Reset', text: `Your password reset code is: ${OTP} , one hour to exiper `
+  })
+
+  res.status(200).json({
+    status: 'success',
+    data: 'email sent successfully ...'
+  })
+})
+
+// @des    forgot password 
+// @route  POST /api/auth/forgot-password/reset
+// @access Public 
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, OTP, newPassword } = req.body;
+  if (!email, !OTP, !newPassword) {
+    addCredintionailsRes(res);
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    res.status(400);
+    throw new Error('user not found ');
+  }
+
+  if (!await bcrypt.compare(OTP, user.OTP) || user.OTPCodeExpiration < Date.now()) {
+    res.status(400);
+    throw new Error('expired OTP  ');
+  }
+
+  //TODO password vaildation . 
+  const updatedUser = await User.updateOne({ email },
+    { password: await bcrypt.hash(newPassword, 12) }, { new: true });
+
+  res.status(200).json({
+    status: 'success',
+    data: 'password reset successfully  '
+  })
+
+})
+
+module.exports = { login, register, logout, isAuth, sendOTP, resetPassword }
+
