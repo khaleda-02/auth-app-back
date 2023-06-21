@@ -1,27 +1,16 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/userModel');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { sendEmail } = require('../util/sendEmail');
+const { sendEmail, registerValidator } = require('../util/');
+const { tokenGenrator, OTPCodeGenerator } = require('../util/').generators;
+
 
 const cookiesExpireTime = 24 * 60 * 60 * 1000; // one day in milliseconds
 const firebaseApp = initializeApp(
   { projectId: process.env.FIREBASE_PROJECT_ID }
 );
-
-//TODO: VAILDATE THE USER INPUTS .  
-
-const tokenGenrator = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '3d' });
-}
-
-const OTPCodeGenerator = () => {
-  return Math.floor(Math.random() * 9000 + 1000);
-}
-
-//! make it middleware 
 const addCredintionailsRes = (res) => {
   res.status(400);
   throw new Error("add credintionals ..")
@@ -42,8 +31,6 @@ const login = asyncHandler(
       verified = true && user;
     } else if (email && password) {
       user = await User.findOne({ email });
-      //! حطينا اليوزر تحت عشان لما انا ادخل ايميل غلط , الكود اللي فوق رح يرجع نل و 
-      //! وبالتالي في الكود تحت ما رح يقدر يقرا من نل و رح يرجع ايرور مش مفهوم 
       verified = user && await bcrypt.compare(password, user.password);
     } else {
       addCredintionailsRes(res);
@@ -54,10 +41,13 @@ const login = asyncHandler(
         .cookie('token', tokenGenrator(user._id), { httpOnly: true, expire: new Date() + cookiesExpireTime })
         .status(200)
         .json({
-          _id: user._id,
-          email: user.email,
-          username: user.username,
-          // accessToken: tokenGenrator(user._id)
+          status: 'success',
+          message: 'login successfully ',
+          data: {
+            _id: user._id,
+            email: user.email,
+            username: user.username,
+          }
         })
     } else {
       res.status(401);
@@ -87,6 +77,12 @@ const register = asyncHandler(async (req, res) => {
 
   } else if (username && email && password) {
     userExists = await User.findOne({ email: email });
+    const { error } = registerValidator({ username, email, password });
+    if (error) {
+      const message = error.details.map(el => el.message)
+      res.status(400);
+      throw new Error(message);
+    }
     userToReturn = !userExists && await User.create({
       email,
       username,
@@ -103,9 +99,13 @@ const register = asyncHandler(async (req, res) => {
       .cookie('token', tokenGenrator(userToReturn._id), { httpOnly: true, expire: new Date() + cookiesExpireTime })
       .status(200)
       .json({
-        _id: userToReturn._id,
-        email: userToReturn.email,
-        username: userToReturn.username,
+        status: 'success',
+        message: 'register successfully ',
+        data: {
+          _id: userToReturn._id,
+          email: userToReturn.email,
+          username: userToReturn.username,
+        }
       })
   } else {
     res.status(400)
@@ -121,7 +121,11 @@ const logout = asyncHandler(async (req, res) => {
   res
     .clearCookie('token')
     .status(200)
-    .json({ message: 'logout successful' })
+    .json({
+      status: 'success',
+      message: 'logout successful',
+      data: {}
+    })
 })
 
 // @des    register 
@@ -155,10 +159,13 @@ const sendOTP = asyncHandler(async (req, res) => {
     subject: 'Password Reset', text: `Your password reset code is: ${OTP} , one hour to exiper `
   })
 
-  res.status(200).json({
-    status: 'success',
-    data: 'email sent successfully ...'
-  })
+  res
+    .status(200)
+    .json({
+      status: 'success',
+      data: 'email sent successfully ...'
+    })
+
 })
 
 // @des    forgot password 
