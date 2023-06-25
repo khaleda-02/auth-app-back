@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 
 //! when the token stored with the cookies case
-const verify = asyncHandler(async (req, res, next) => {
+const authenticateUser = asyncHandler(async (req, res, next) => {
   let token = req.cookies.token; // token => token without bearer
   if (!token) {
     res.status(401);
@@ -12,8 +12,9 @@ const verify = asyncHandler(async (req, res, next) => {
 
   try {
     const userDecoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findOne({ _id: userDecoded.id }).select('_id email username');
+    req.user = await User.findOne({ _id: userDecoded.id }).select('_id email username verified');
     next();
+    //? when we sign the token , we just pass the id without ( email , username , verified ) , becase we need those field up-to-date when I visit protected routes 
   } catch (erro) {
     res
       .clearCookie('token')
@@ -41,4 +42,4 @@ const verify = asyncHandler(async (req, res, next) => {
 //   }
 // })
 
-module.exports = verify;
+module.exports = authenticateUser;

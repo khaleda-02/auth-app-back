@@ -1,3 +1,4 @@
+const { boolean } = require("joi");
 const mongoose = require("mongoose");
 
 const userSchema = mongoose.Schema(
@@ -26,6 +27,11 @@ const userSchema = mongoose.Schema(
     OTPCodeExpiration: {
       type: Date,
       default: undefined
+    },
+    verified: {
+      type: Boolean,
+      default: false,
+
     },
     role: {
       user: {

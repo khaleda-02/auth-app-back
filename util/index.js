@@ -1,7 +1,11 @@
-const { sendEmail } = require('./sendEmail')
-const { registerValidator } = require('./validator')
+const { sendEmail } = require('./sendEmail');
+const { sendOTP } = require('./sendOTP');
+const { registerValidator, passwordValidator } = require('./validator');
+
 module.exports = {
   sendEmail,
-  registerValidator ,
+  registerValidator,
+  passwordValidator,
+  sendOTP, 
   generators: require('./generators')
-}
+};

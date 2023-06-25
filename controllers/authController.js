@@ -3,8 +3,8 @@ const User = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { sendEmail, registerValidator } = require('../util/');
-const { tokenGenrator, OTPCodeGenerator } = require('../util/').generators;
+const { registerValidator, passwordValidator, sendOTP } = require('../util/');
+const { tokenGenrator } = require('../util/').generators;
 
 
 const cookiesExpireTime = 24 * 60 * 60 * 1000; // one day in milliseconds
@@ -113,7 +113,112 @@ const register = asyncHandler(async (req, res) => {
   }
 })
 
+//! VerifyUser FEATURE
+// @des    verify user 
+// @route  GET /api/auth/verify
+// @access private 
+const sendVerifyUserOTP = asyncHandler(async (req, res) => {
+  const { email, verified } = req.user;
+  console.log(req.user)
+  if (verified) {
+    res.status(400);
+    throw new Error('user already verifief');
+  }
+  const options = {
+    subject: 'Verify User',
+  };
+  await sendOTP(email, options)
+  res
+    .status(200)
+    .json({
+      status: 'success',
+      message: 'email sent successfully ...'
+    })
+})
 
+// @des    verify user 
+// @route  POST /api/auth/verify
+// @access private 
+const verifyUser = asyncHandler(async (req, res) => {
+  const { email } = req.user;
+  const { OTP } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!await bcrypt.compare(OTP, user.OTP) || user.OTPCodeExpiration < Date.now()) {
+    res.status(400);
+    throw new Error('invalid OTP  ');
+  }
+  await User.updateOne({ email },
+    { verified: true });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'user verified   '
+  })
+
+})
+
+
+
+//! ForgotPassword FEATURE 
+// @des    forgot password 
+// @route  POST /api/auth/forgot-password/
+// @access Public 
+const sendResetPasswordOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    addCredintionailsRes(res);
+  }
+
+  const options = {
+    subject: 'Password Reset',
+  };
+
+  await sendOTP(email, options)
+  res
+    .status(200)
+    .json({
+      status: 'success',
+      message: 'email sent successfully ...'
+    })
+
+})
+
+
+// @des    forgot password 
+// @route  POST /api/auth/forgot-password/reset
+// @access Public 
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, OTP, newPassword } = req.body;
+  if (!email, !OTP, !newPassword) {
+    addCredintionailsRes(res);
+  }
+  const user = await User.findOne({ email });
+  if (!user) {
+    res.status(400);
+    throw new Error('user not found ');
+  }
+  if (!await bcrypt.compare(OTP, user.OTP) || user.OTPCodeExpiration < Date.now()) {
+    res.status(400);
+    throw new Error('invalid OTP  ');
+  }
+  const { error } = passwordValidator({ newPassword });
+  if (error) {
+    const message = error.details.map(el => el.message)
+    res.status(400);
+    throw new Error(message);
+  }
+  await User.updateOne({ email },
+    { password: await bcrypt.hash(newPassword, 12) }, { new: true });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'password reset successfully  '
+  })
+})
+
+
+//! Others FEATURES
 // @des    logout
 // @route  get /api/auth/logout
 // @access public
@@ -135,69 +240,5 @@ const isAuth = (req, res) => {
   res.status(200).json(req.user)
 }
 
-// @des    forgot password 
-// @route  POST /api/auth/forgot-password/
-// @access Public 
-const sendOTP = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
-    addCredintionailsRes(res);
-  }
-  const OTP = OTPCodeGenerator();
-  const user = await User.findOneAndUpdate({ email }, {
-    OTP: await bcrypt.hash(`${OTP}`, 12), OTPCodeExpiration: Date.now() + 3600000
-  }, { new: true })
 
-  if (!user) {
-    res.status(400);
-    throw new Error('user not found ');
-  }
-
-  await sendEmail({
-    from: 'khaleda.02f',
-    to: email,
-    subject: 'Password Reset', text: `Your password reset code is: ${OTP} , one hour to exiper `
-  })
-
-  res
-    .status(200)
-    .json({
-      status: 'success',
-      data: 'email sent successfully ...'
-    })
-
-})
-
-// @des    forgot password 
-// @route  POST /api/auth/forgot-password/reset
-// @access Public 
-const resetPassword = asyncHandler(async (req, res) => {
-  const { email, OTP, newPassword } = req.body;
-  if (!email, !OTP, !newPassword) {
-    addCredintionailsRes(res);
-  }
-
-  const user = await User.findOne({ email });
-  if (!user) {
-    res.status(400);
-    throw new Error('user not found ');
-  }
-
-  if (!await bcrypt.compare(OTP, user.OTP) || user.OTPCodeExpiration < Date.now()) {
-    res.status(400);
-    throw new Error('expired OTP  ');
-  }
-
-  //TODO password vaildation . 
-  const updatedUser = await User.updateOne({ email },
-    { password: await bcrypt.hash(newPassword, 12) }, { new: true });
-
-  res.status(200).json({
-    status: 'success',
-    data: 'password reset successfully  '
-  })
-
-})
-
-module.exports = { login, register, logout, isAuth, sendOTP, resetPassword }
-
+module.exports = { login, register, logout, isAuth, sendResetPasswordOTP, resetPassword, sendVerifyUserOTP, verifyUser }
