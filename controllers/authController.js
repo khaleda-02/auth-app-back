@@ -38,7 +38,7 @@ const login = asyncHandler(
 
     if (verified) {
       res
-        .cookie('token', tokenGenrator(user._id), { httpOnly: true, expire: new Date() + cookiesExpireTime, path: "https://stunning-hotteok-04b153.netlify.app" })
+        .cookie('token', tokenGenrator(user._id), {   expire: new Date() + cookiesExpireTime })
         .status(200)
         .json({
           status: 'success',
@@ -96,7 +96,7 @@ const register = asyncHandler(async (req, res) => {
 
   if (verified) {
     res
-      .cookie('token', tokenGenrator(userToReturn._id), { httpOnly: true, expire: new Date() + cookiesExpireTime , path: "https://stunning-hotteok-04b153.netlify.app"})
+      .cookie('token', tokenGenrator(userToReturn._id), { expire: new Date() + cookiesExpireTime })
       .status(200)
       .json({
         status: 'success',
