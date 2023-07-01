@@ -9,13 +9,12 @@ const port = 3001 || process.env.PORT;
 
 connectDb();
 app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded());
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   next();
 })
-app.use(express.json());
-app.use(cookieParser());
-app.use(express.urlencoded());
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
