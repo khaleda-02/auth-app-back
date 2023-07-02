@@ -7,10 +7,12 @@ const errorHandler = (err, req, res, next) => {
 
   res.statusCode = statusCode;
 
-  res.json({
-    message: err.message,
-    stack: err.stack
-  })
+  res
+    .json({
+      status: 'faild',
+      message: err.message,
+      stack: err.stack
+    })
 }
 
 module.exports = { errorHandler };
