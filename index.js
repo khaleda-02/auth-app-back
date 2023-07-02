@@ -27,11 +27,6 @@ app.use('/api/auth', require('./routes/authRoutes'));
 
 app.use(errorHandler);
 
-//? res logger 
-function loggerMiddleware(req, res, next) {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  next();
-}
 
 // Register the middleware for all routes
 app.use(loggerMiddleware);
