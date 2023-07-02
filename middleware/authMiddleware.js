@@ -6,9 +6,15 @@ const User = require('../models/userModel');
 const authenticateUser = asyncHandler(async (req, res, next) => {
   let token;
   //!getting the token
-  let header = req.headers.authorization ;
+  let header = req.headers.authorization;
   if (header && header.startsWith('Bearer')) {
+    console.log(header);
     token = header.split(' ')[1];
+    console.log(token);
+    if (!token) {
+      res.status(401);
+      throw new Error('unauthorized , missing token')
+    }
     //! validate the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = await User.findOne({ _id: decoded.id }).select('_id email username verified');
