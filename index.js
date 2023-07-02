@@ -15,11 +15,26 @@ app.use((req, res, next) => {
   next();
 })
 
+//? req logger 
+function loggerMiddleware(req, res, next) {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+}
+app.use(loggerMiddleware);
+
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 
-
 app.use(errorHandler);
+
+//? res logger 
+function loggerMiddleware(req, res, next) {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+}
+
+// Register the middleware for all routes
+app.use(loggerMiddleware);
 
 app.listen(port, () => {
   console.log('test', port);
