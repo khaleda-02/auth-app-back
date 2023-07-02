@@ -7,7 +7,6 @@ const { registerValidator, passwordValidator, sendOTP } = require('../util/');
 const { tokenGenrator } = require('../util/').generators;
 
 
-const cookiesExpireTime = 24 * 60 * 60 * 1000; // one day in milliseconds
 const firebaseApp = initializeApp(
   { projectId: process.env.FIREBASE_PROJECT_ID }
 );
@@ -51,7 +50,7 @@ const login = asyncHandler(
         })
     } else {
       res.status(401);
-      throw new Error('unauthorized');
+      throw new Error('worng data .');
     }
   }
 )
@@ -224,7 +223,6 @@ const resetPassword = asyncHandler(async (req, res) => {
 // @access public
 const logout = asyncHandler(async (req, res) => {
   res
-    .clearCookie('token')
     .status(200)
     .json({
       status: 'success',
