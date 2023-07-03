@@ -11,9 +11,6 @@ const port = 3001 || process.env.PORT;
 connectDb();
 
 app.use(express.static(path.join(__dirname, 'dist')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
 
 app.use(cors());
 app.use(express.json());
