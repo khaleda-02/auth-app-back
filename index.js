@@ -1,12 +1,20 @@
 const express = require('express');
+const path = require('path');
 require('dotenv').config();
 const connectDb = require('./config/dbConnection');
 const cors = require('cors');
 const { errorHandler } = require('./middleware/errorMiddleware');
+const { loggerMiddleware } = require('./util');
 const app = express();
 const port = 3001 || process.env.PORT;
 
 connectDb();
+
+app.use(express.static(path.join(__dirname, 'dist')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded());
@@ -16,20 +24,12 @@ app.use((req, res, next) => {
 })
 
 //? req logger 
-function loggerMiddleware(req, res, next) {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  next();
-}
 app.use(loggerMiddleware);
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 
 app.use(errorHandler);
-
-
-// Register the middleware for all routes
-app.use(loggerMiddleware);
 
 app.listen(port, () => {
   console.log('test', port);
