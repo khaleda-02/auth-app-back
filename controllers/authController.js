@@ -103,7 +103,7 @@ const register = asyncHandler(async (req, res) => {
           _id: userToReturn._id,
           email: userToReturn.email,
           username: userToReturn.username,
-          token: tokenGenrator(user._id)
+          token: tokenGenrator(userToReturn._id)
         }
       })
   } else {

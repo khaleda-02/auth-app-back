@@ -16,7 +16,7 @@ const sendOTP = async (email, options) => {
     }
     await sendEmail({
       ...options,
-      from: 'khaleda.02f@gmail.com',
+      from: 'W',
       to: email,
       text: `Your code is: ${OTP} , one hour to exiper `
     })
